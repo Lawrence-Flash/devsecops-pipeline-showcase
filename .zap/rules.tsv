@@ -3,6 +3,4 @@
 # Actions: IGNORE, WARN, FAIL, INFO.
 # Do not IGNORE a rule without saying why. High findings should stay FAIL.
 # The workflow sets fail_action=true, so WARN and FAIL both fail the job.
-# Add a row here only after you have looked at the report and decided it is a
-# false positive for this JSON API. Example (leave commented until you need it):
-# 10096	IGNORE	ISO timestamps in JSON trip the timestamp-disclosure check; no secrets in the field.
+10049	IGNORE	Cache-Control is no-store on purpose. ZAP 10049 reports that the response is not storable, which is the intended control for ticket data, not a missing header.

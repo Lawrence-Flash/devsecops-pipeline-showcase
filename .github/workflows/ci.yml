@@ -107,7 +107,10 @@ jobs:
           scanners: vuln,secret
           severity: HIGH,CRITICAL
           exit-code: "1"
-          ignore-unfixed: false
+          # Bookworm has high/critical advisories with no fixed package.
+          # apt-get upgrade in the Dockerfile installs every fix that exists.
+          # A high or critical CVE with a fixed version still fails this job.
+          ignore-unfixed: true
       - name: CycloneDX SBOM
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:

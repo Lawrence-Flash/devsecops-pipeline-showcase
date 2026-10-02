@@ -77,7 +77,7 @@ High and critical findings fail the job. Semgrep fails on error-level findings, 
 | SAST | Semgrep CE, plus `.semgrep/custom-rules.yml` | Same | Error-level findings | SQL built with f-strings, `shell=True`, and the Python / Dockerfile / Kubernetes packs |
 | SAST | CodeQL (`security-extended`) | Same | `security-severity` ≥ 7.0, or SARIF level `error` | Source-level bugs. Results also upload to the Security tab |
 | SCA, IaC, secrets | Trivy filesystem | Same | HIGH or CRITICAL | Vulnerable Python packages, Dockerfile and Kubernetes and Terraform misconfigurations, secrets on disk |
-| Image scan | Trivy image | Same, after `docker build` | HIGH or CRITICAL | Vulnerabilities and secrets baked into the image |
+| Image scan | Trivy image | Same, after `docker build` | HIGH or CRITICAL with a fix available | Vulnerabilities and secrets baked into the image |
 | SBOM | Trivy CycloneDX | Same | The job fails if the file is missing | Knowing which components shipped, after something like Log4Shell |
 | Policy-as-code | Kyverno CLI 1.19.1 | Same, against `helm template` output | The chart violates a policy, or a negative test is accidentally allowed | Privileged containers, root, writable rootfs, missing limits, `:latest` |
 | DAST | OWASP ZAP baseline | Same, against the running container | Alerts that are not tuned in `.zap/rules.tsv` | Missing headers and other issues that only show up on a live response |
@@ -86,6 +86,11 @@ High and critical findings fail the job. Semgrep fails on error-level findings, 
 | Pod Security | Namespace label `restricted` | Same | The kubelet rejects a non-restricted pod | A second, built-in control beside Kyverno |
 | Network | NetworkPolicy | While the pod is running | Traffic the policy does not allow | The process accepting anything other than TCP 8000, or calling out |
 | Workload identity | Dedicated ServiceAccount, token not mounted, no Role | While the pod is running | There is nothing to fail in CI | A compromised process using the Kubernetes API |
+
+Two exceptions are written down on purpose:
+
+- The image scan sets `ignore-unfixed: true`. Debian bookworm currently has high and critical advisories in the base image with no fixed package (`affected`, `fix_deferred`, or `will_not_fix`). The Dockerfile runs `apt-get upgrade`, so every fix Debian has published is installed. A high or critical finding that has a fixed version still fails the job.
+- ZAP rule 10049 (Non-Storable Content) is `IGNORE` in `.zap/rules.tsv`. The API sends `Cache-Control: no-store` so ticket responses are not stored by a shared cache. ZAP reports that outcome as a warning. It is the control working, not a missing header.
 
 Two notes so this table stays honest:
 
@@ -123,10 +128,11 @@ Optional, if you install [pre-commit](https://pre-commit.com/): `pre-commit inst
 ### Docker
 
 ```bash
+export TICKETS_API_KEY=lab-demo-key
 docker build -t tickets-api:local .
 docker run --rm --read-only --tmpfs /tmp \
   --cap-drop ALL --security-opt no-new-privileges \
-  -p 8000:8000 -e TICKETS_API_KEY=lab-demo-key \
+  -p 8000:8000 -e TICKETS_API_KEY \
   tickets-api:local
 ```
 
@@ -134,7 +140,7 @@ In another terminal:
 
 ```bash
 curl -sS http://127.0.0.1:8000/health
-curl -sS -H "X-API-Key: lab-demo-key" -H "Content-Type: application/json" \
+curl -sS -H "X-API-Key: ${TICKETS_API_KEY}" -H "Content-Type: application/json" \
   -d '{"title":"lab","body":"hello"}' \
   http://127.0.0.1:8000/tickets
 ```
