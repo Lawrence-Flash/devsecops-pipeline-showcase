@@ -1,0 +1,36 @@
+rules:
+  - id: no-fstring-sql
+    languages: [python]
+    severity: ERROR
+    message: >-
+      SQL built with an f-string can be changed by user input.
+      Use a parameterized query, for example cursor.execute(sql, params).
+    metadata:
+      cwe: "CWE-89: Improper Neutralization of Special Elements used in an SQL Command"
+      category: security
+      owasp: "A03:2021 - Injection"
+      confidence: MEDIUM
+      author: starter rule for this lab
+    pattern-either:
+      - pattern: $CURSOR.execute(f"...")
+      - pattern: $CURSOR.executemany(f"...")
+      - pattern: $CURSOR.execute(f'...')
+      - pattern: $CURSOR.executemany(f'...')
+
+  - id: no-subprocess-shell
+    languages: [python]
+    severity: ERROR
+    message: >-
+      subprocess with shell=True passes the command through a shell.
+      Pass a list of arguments and keep shell=False.
+    metadata:
+      cwe: "CWE-78: Improper Neutralization of Special Elements used in an OS Command"
+      category: security
+      owasp: "A03:2021 - Injection"
+      confidence: HIGH
+      author: starter rule for this lab
+    pattern-either:
+      - pattern: subprocess.run(..., shell=True, ...)
+      - pattern: subprocess.Popen(..., shell=True, ...)
+      - pattern: subprocess.call(..., shell=True, ...)
+      - pattern: subprocess.check_output(..., shell=True, ...)
