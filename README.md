@@ -73,7 +73,7 @@ High and critical findings fail the job. Semgrep fails on error-level findings, 
 | Control | Tool | When it runs | What fails the job | Threat it is there for |
 | --- | --- | --- | --- | --- |
 | Tests and lint | pytest, ruff | Every pull request and push to `main` | A failing test or a lint error | Regressions in auth and validation |
-| Secret scanning | Gitleaks 8.30.1 | Same, full git history | Any leak it recognises | Credentials committed to git (CWE-798) |
+| Secret scanning | Gitleaks 8.30.1 | Same, `git log HEAD` for this branch | Any leak it recognises | Credentials committed to git (CWE-798) |
 | SAST | Semgrep CE, plus `.semgrep/custom-rules.yml` | Same | Error-level findings | SQL built with f-strings, `shell=True`, and the Python / Dockerfile / Kubernetes packs |
 | SAST | CodeQL (`security-extended`) | Same | `security-severity` ≥ 7.0, or SARIF level `error` | Source-level bugs. Results also upload to the Security tab |
 | SCA, IaC, secrets | Trivy filesystem | Same | HIGH or CRITICAL | Vulnerable Python packages, Dockerfile and Kubernetes and Terraform misconfigurations, secrets on disk |
@@ -91,7 +91,7 @@ Three exceptions are written down on purpose:
 
 - The image scan sets `ignore-unfixed: true`. Debian bookworm currently has high and critical advisories in the base image with no fixed package (`affected`, `fix_deferred`, or `will_not_fix`). The Dockerfile runs `apt-get upgrade`, so every fix Debian has published is installed. A high or critical finding that has a fixed version still fails the job.
 - ZAP rule 10049 (Non-Storable Content) is `IGNORE` in `.zap/rules.tsv`. The API sends `Cache-Control: no-store` so ticket responses are not stored by a shared cache. ZAP reports that outcome as a warning. It is the control working, not a missing header.
-- `.gitleaks.toml` allowlists the string `lab-demo-key` in `README.md` only. Gitleaks scans full history, and an earlier commit put that placeholder in a curl header. Any other secret still fails the job.
+- `.gitleaks.toml` allowlists the string `lab-demo-key` in `README.md` only. An earlier commit on this branch put that placeholder in a curl header, and Gitleaks still sees it because the job runs `gitleaks detect --log-opts=HEAD`. Any other secret in that history still fails the job. Other branches, including the unmerged demo pull request, are outside that log.
 
 Two notes so this table stays honest:
 
@@ -174,7 +174,7 @@ The platform root is the piece you would keep if a future cloud module replaced 
 
 ## What a blocked pull request looks like
 
-A second pull request, [#2](https://github.com/Lawrence-Flash/devsecops-pipeline-showcase/pull/2) on branch `cursor/demo-blocked-secret-086e`, adds one file on purpose: `demo/DO_NOT_MERGE_fake_github_pat.py`. The file holds a synthetic `ghp_` string in the shape of a GitHub personal access token. It was never issued, it authorizes nothing, and the pull request is not meant to be merged. The value is not copied into this README, because Gitleaks scans history.
+A second pull request, [#2](https://github.com/Lawrence-Flash/devsecops-pipeline-showcase/pull/2) on branch `cursor/demo-blocked-secret-086e`, adds one file on purpose: `demo/DO_NOT_MERGE_fake_github_pat.py`. The file holds a synthetic `ghp_` string in the shape of a GitHub personal access token. It was never issued, it authorizes nothing, and the pull request is not meant to be merged. The value is not copied into this README. Gitleaks would keep failing this branch if the token were in an ancestor commit.
 
 On a clean branch the checks in the table above are green. On the demo branch the secret scanners go red. Gitleaks reports the token in git history. Trivy filesystem secret scanning reports the same file as a critical GitHub PAT finding. The image scan stays green because `demo/` is excluded from the Docker build context. CodeQL or Semgrep may also flag the hard-coded credential. The failing check is the finding, and the pull request stays open so the red jobs can be screenshotted.
 

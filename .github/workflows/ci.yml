@@ -51,7 +51,10 @@ jobs:
           sudo mv /tmp/gitleaks /usr/local/bin/gitleaks
           gitleaks version
       - name: Scan git history for secrets
-        run: gitleaks detect --source . --redact --verbose --exit-code 1
+        # A full fetch also downloads other branches. The default scan
+        # walks every ref, so the unmerged demo branch would fail this one.
+        # HEAD is the history of the pull request or of main.
+        run: gitleaks detect --source . --redact --verbose --exit-code 1 --log-opts="HEAD"
 
   semgrep:
     name: semgrep
