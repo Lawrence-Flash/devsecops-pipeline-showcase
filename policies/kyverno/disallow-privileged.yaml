@@ -1,0 +1,44 @@
+# Privileged containers can access the host. Autogen also applies this rule to
+# Deployments, StatefulSets, DaemonSets, Jobs, and CronJobs.
+# Kyverno 1.19 warns that ClusterPolicy is deprecated in favour of ValidatingPolicy.
+# ClusterPolicy is still enforced, and it is what gives the CLI the autogen behaviour.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privileged
+  annotations:
+    policies.kyverno.io/title: Disallow privileged containers
+    policies.kyverno.io/category: Pod Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: Privileged containers are not allowed outside system namespaces.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: pod-privileged
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - kube-public
+                - kube-node-lease
+      validate:
+        message: Privileged containers are not allowed.
+        pattern:
+          spec:
+            =(initContainers):
+              - =(securityContext):
+                  =(privileged): false
+            =(ephemeralContainers):
+              - =(securityContext):
+                  =(privileged): false
+            containers:
+              - =(securityContext):
+                  =(privileged): false

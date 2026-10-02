@@ -1,0 +1,43 @@
+# Containers must opt out of root. The chart sets runAsNonRoot on the pod and the container.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-non-root
+  annotations:
+    policies.kyverno.io/title: Require non-root
+    policies.kyverno.io/category: Pod Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: Pods must set runAsNonRoot on the pod and on every container.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: pod-non-root
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - kube-public
+                - kube-node-lease
+      validate:
+        message: runAsNonRoot must be true on the pod and on every container.
+        pattern:
+          spec:
+            securityContext:
+              runAsNonRoot: true
+            =(initContainers):
+              - securityContext:
+                  runAsNonRoot: true
+            =(ephemeralContainers):
+              - securityContext:
+                  runAsNonRoot: true
+            containers:
+              - securityContext:
+                  runAsNonRoot: true

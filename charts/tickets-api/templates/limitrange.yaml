@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: {{ include "tickets-api.fullname" . }}
+  labels:
+    {{- include "tickets-api.labels" . | nindent 4 }}
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 100m
+        memory: 128Mi
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi
+      max:
+        cpu: "1"
+        memory: 512Mi

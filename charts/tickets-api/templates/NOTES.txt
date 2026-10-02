@@ -1,0 +1,11 @@
+Tickets API is installed in namespace {{ .Release.Namespace }}.
+
+The chart default Service is a ClusterIP. Terraform sets NodePort {{ .Values.service.nodePort }}
+on kind so the lab is reachable at http://127.0.0.1:{{ .Values.service.nodePort }}/health
+
+The API key is the lab placeholder from values (labApiKey). It is not a production secret.
+Send it as the X-API-Key header.
+
+  curl -s -H "X-API-Key: $TICKETS_API_KEY" -H "Content-Type: application/json" \
+    -d '{"title":"lab","body":"hello"}' \
+    http://127.0.0.1:{{ .Values.service.nodePort }}/tickets

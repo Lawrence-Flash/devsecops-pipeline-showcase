@@ -1,0 +1,32 @@
+replicaCount: 1
+
+image:
+  repository: tickets-api
+  # Never "latest". Local kind loads this tag with `kind load` / the kind_load resource.
+  tag: local
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8000
+  nodePort: 30080
+
+# Lab placeholder only. It is not a credential for any real system.
+# A real deploy would inject this from a secret store. Gitleaks and Trivy are
+# expected to stay quiet because the value is low-entropy and documented.
+labApiKey: lab-demo-key
+
+rateLimit: 30/minute
+
+serviceAccount:
+  name: ""
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+    ephemeral-storage: 64Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+    ephemeral-storage: 256Mi
