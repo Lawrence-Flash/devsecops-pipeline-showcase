@@ -87,10 +87,11 @@ High and critical findings fail the job. Semgrep fails on error-level findings, 
 | Network | NetworkPolicy | While the pod is running | Traffic the policy does not allow | The process accepting anything other than TCP 8000, or calling out |
 | Workload identity | Dedicated ServiceAccount, token not mounted, no Role | While the pod is running | There is nothing to fail in CI | A compromised process using the Kubernetes API |
 
-Two exceptions are written down on purpose:
+Three exceptions are written down on purpose:
 
 - The image scan sets `ignore-unfixed: true`. Debian bookworm currently has high and critical advisories in the base image with no fixed package (`affected`, `fix_deferred`, or `will_not_fix`). The Dockerfile runs `apt-get upgrade`, so every fix Debian has published is installed. A high or critical finding that has a fixed version still fails the job.
 - ZAP rule 10049 (Non-Storable Content) is `IGNORE` in `.zap/rules.tsv`. The API sends `Cache-Control: no-store` so ticket responses are not stored by a shared cache. ZAP reports that outcome as a warning. It is the control working, not a missing header.
+- `.gitleaks.toml` allowlists the string `lab-demo-key` in `README.md` only. Gitleaks scans full history, and an earlier commit put that placeholder in a curl header. Any other secret still fails the job.
 
 Two notes so this table stays honest:
 
