@@ -168,7 +168,41 @@ make down
 
 The `up` recipe is `docker build -t tickets-api:local .`, then `terraform apply` in `infra/terraform/cluster` (kind cluster, then `kind load docker-image`), then `terraform apply` in `infra/terraform/platform` (Kyverno, policies, Helm release).
 
-On Windows, run `make` from Git Bash with Docker Desktop already running. Put `docker`, `kind`, `kubectl`, `terraform`, and `helm` on the Windows PATH, because Terraform `local-exec` starts `cmd.exe` even when `make` was started from Git Bash. The provisioners use `&&`, double quotes, and a Terraform `environment` block for `KUBECONFIG`. The venv activate script there is `.venv/Scripts/activate`.
+### Running locally / proof it works
+
+Verified on Windows 11 + WSL2 Ubuntu + Docker Desktop, from a fresh clone in `~`. `make up` finished, every pod was `1/1 Running`, and `curl http://127.0.0.1:30080/health` returned `{"status":"ok"}`.
+
+![kubectl get pods -A with tickets-api Running](docs/screenshots/kubectl-pods-running.png)
+
+*Windows 11 + WSL2 Ubuntu + Docker Desktop. kube-system, `kyverno-admission-controller`, `local-path-provisioner`, and `tickets-api` in namespace `tickets` are Running.*
+
+Two more screenshots belong here when they exist. The lines stay commented so the README does not show a broken image.
+
+<!--
+![Kyverno rejects nginx:latest](docs/screenshots/kyverno-rejects-latest.png)
+
+*`kubectl run bad --image=nginx:latest` is rejected by the Kyverno admission policy.*
+-->
+
+<!--
+![Pull request 2 failed gitleaks and trivy-filesystem](docs/screenshots/pr-2-failed-checks.png)
+
+*Pull request #2, the demo secret, fails `gitleaks` and `trivy-filesystem`.*
+-->
+
+### Windows
+
+On Windows, use WSL2 Ubuntu with Docker Desktop's WSL integration, and clone the repo inside the Linux home directory (`~` or `~/src/...`). A clone on `/mnt/c` is a Windows-drive checkout; Git for Windows with `core.autocrlf=true` writes CRLF there, and WSL `make` then reports `$'\r': command not found`. Install `docker`, `kind`, `kubectl`, `terraform`, and `helm` inside Ubuntu.
+
+If `kubectl get pods` talks to some other cluster, point it at this one:
+
+```bash
+kind export kubeconfig --name devsecops-lab
+```
+
+Terraform also writes `infra/terraform/cluster/.kubeconfig`. `export KUBECONFIG="$PWD/infra/terraform/cluster/.kubeconfig"` uses that file.
+
+Git Bash is the fallback when you are outside WSL. Put the same tools on the Windows PATH, because Terraform `local-exec` starts `cmd.exe` even when `make` was started from Git Bash. The provisioners use `&&`, double quotes, and a Terraform `environment` block for `KUBECONFIG`. The venv activate script there is `.venv/Scripts/activate`.
 
 Give Docker Desktop at least 4 GB of memory before `make up` (Settings → Resources → Memory, then Apply). The kind node, one Kyverno admission pod, and the API need that. This lab runs a single admission-controller replica and turns off the background, cleanup, and reports controllers, plus report generation. At 2 GB those extra pods stay `Pending` while images download, and Helm returns `context deadline exceeded`. After changing the memory setting, shut the WSL VM down from Windows PowerShell with `wsl --shutdown`, then open Ubuntu again so Docker uses the new limit.
 
@@ -267,8 +301,8 @@ The workflows cannot flip repository settings.
 2. Settings → Code security → Dependabot alerts, and Dependabot security updates. `dependabot.yml` only opens version-update PRs.
 3. Secret scanning and push protection, which are free on public repositories.
 4. Leave CodeQL default setup off while `.github/workflows/codeql.yml` is here, or you will get two analyses.
-5. Install Docker, kind, kubectl, Terraform, and Helm, then run `make up` and keep a screenshot.
-6. Screenshot the demo pull request. Do not merge it.
+5. The running-cluster screenshot is already in `docs/screenshots/kubectl-pods-running.png`. Still to capture: Kyverno rejecting `kubectl run bad --image=nginx:latest`. Drop the file at `docs/screenshots/kyverno-rejects-latest.png` and uncomment that block in the proof section.
+6. Screenshot the demo pull request's red checks. Do not merge it. Drop the file at `docs/screenshots/pr-2-failed-checks.png` and uncomment that block.
 7. Write one more Semgrep rule in your own words so you can talk through it.
 
 A false positive, when you meet one, belongs in `.trivyignore` or `.zap/rules.tsv` with a reason and an expiry. Do not silence a high finding to make the badge green.
