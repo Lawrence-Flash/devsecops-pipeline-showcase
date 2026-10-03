@@ -1,0 +1,23 @@
+[project]
+name = "tickets-api"
+version = "0.1.0"
+description = "Personal lab API used to demonstrate a DevSecOps pipeline."
+requires-python = ">=3.12"
+readme = "README.md"
+
+[tool.pytest.ini_options]
+testpaths = ["app/tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+src = ["app", "scripts"]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# FastAPI's Depends() in defaults is the framework's documented style.
+ignore = ["B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]

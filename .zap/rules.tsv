@@ -1,0 +1,6 @@
+# ZAP baseline rule tuning.
+# Columns are tab-separated: RuleID  Action  Justification
+# Actions: IGNORE, WARN, FAIL, INFO.
+# Do not IGNORE a rule without saying why. High findings should stay FAIL.
+# The workflow sets fail_action=true, so WARN and FAIL both fail the job.
+10049	IGNORE	Cache-Control is no-store on purpose. ZAP 10049 reports that the response is not storable, which is the intended control for ticket data, not a missing header.

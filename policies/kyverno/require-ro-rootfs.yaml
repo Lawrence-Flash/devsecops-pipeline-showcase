@@ -1,0 +1,41 @@
+# A read-only root filesystem stops a compromised process from rewriting the image contents.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-ro-rootfs
+  annotations:
+    policies.kyverno.io/title: Require a read-only root filesystem
+    policies.kyverno.io/category: Pod Security
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: Every container must set readOnlyRootFilesystem.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: pod-ro-rootfs
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - kube-public
+                - kube-node-lease
+      validate:
+        message: Root filesystem must be read-only. Mount an emptyDir for writable paths such as /tmp.
+        pattern:
+          spec:
+            =(initContainers):
+              - securityContext:
+                  readOnlyRootFilesystem: true
+            =(ephemeralContainers):
+              - securityContext:
+                  readOnlyRootFilesystem: true
+            containers:
+              - securityContext:
+                  readOnlyRootFilesystem: true

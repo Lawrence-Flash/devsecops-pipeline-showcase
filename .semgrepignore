@@ -1,0 +1,8 @@
+# Kyverno policy documents contain a `spec.containers` pattern. Semgrep's
+# Kubernetes pack reads that as a Pod and reports a false positive.
+# Trivy and the Kyverno CLI cover these files instead.
+policies/kyverno/
+policies/testdata/
+.venv/
+venv/
+**/.terraform/

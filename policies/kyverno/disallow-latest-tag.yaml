@@ -1,0 +1,62 @@
+# The latest tag moves. Deployments in this lab must name an explicit tag.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/title: Disallow the latest tag
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: Images must use an explicit tag other than latest.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: pod-require-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - kube-public
+                - kube-node-lease
+      validate:
+        message: An image tag is required.
+        pattern:
+          spec:
+            =(initContainers):
+              - image: "*:*"
+            =(ephemeralContainers):
+              - image: "*:*"
+            containers:
+              - image: "*:*"
+    - name: pod-disallow-latest
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - kube-public
+                - kube-node-lease
+      validate:
+        message: The latest tag is not allowed.
+        pattern:
+          spec:
+            =(initContainers):
+              - image: "!*:latest"
+            =(ephemeralContainers):
+              - image: "!*:latest"
+            containers:
+              - image: "!*:latest"

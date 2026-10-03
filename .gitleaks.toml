@@ -1,0 +1,12 @@
+title = "devsecops-pipeline-showcase"
+
+[extend]
+useDefault = true
+
+# The first README commit showed the lab placeholder inside a curl -H example.
+# Gitleaks rule curl-auth-header treats that as a leaked credential. The string
+# is not a key for any real system. Later docs pass it through $TICKETS_API_KEY.
+[[allowlists]]
+description = "Documented lab placeholder, not a live credential."
+paths = ['''README\.md''']
+regexes = ['''lab-demo-key''']
