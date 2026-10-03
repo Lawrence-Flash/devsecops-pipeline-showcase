@@ -1,0 +1,3 @@
+# Keep shell, Make, and Terraform usable when the repo is checked out
+# on a Windows drive and then used from WSL. CRLF breaks `make` and bash.
+* text=auto eol=lf

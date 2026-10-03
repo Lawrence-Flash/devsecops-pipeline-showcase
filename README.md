@@ -170,13 +170,69 @@ The `up` recipe is `docker build -t tickets-api:local .`, then `terraform apply`
 
 On Windows, run `make` from Git Bash with Docker Desktop already running. Put `docker`, `kind`, `kubectl`, `terraform`, and `helm` on the Windows PATH, because Terraform `local-exec` starts `cmd.exe` even when `make` was started from Git Bash. The provisioners use `&&`, double quotes, and a Terraform `environment` block for `KUBECONFIG`. The venv activate script there is `.venv/Scripts/activate`.
 
-If `make up` stops after the kind cluster exists, pull this branch and run `make up` again. Terraform replaces the failed image-load step and continues with the platform root. The cluster stays. `make down` deletes it.
+Give Docker Desktop at least 4 GB of memory before `make up` (Settings → Resources → Memory, then Apply). The kind node, one Kyverno admission pod, and the API need that. This lab runs a single admission-controller replica and turns off the background, cleanup, and reports controllers, plus report generation. At 2 GB those extra pods stay `Pending` while images download, and Helm returns `context deadline exceeded`. After changing the memory setting, shut the WSL VM down from Windows PowerShell with `wsl --shutdown`, then open Ubuntu again so Docker uses the new limit.
+
+Helm waits up to 900 seconds for Kyverno and for the API. `atomic` and `cleanup_on_fail` are set on both releases. A failed install is removed. A failed upgrade rolls back. The next `make up` upgrades a release that is already in `failed` status, or installs it again when Helm has already deleted it.
+
+`make down` deletes the cluster. If apply stops part way through, use the troubleshooting section below before you delete anything.
 
 Why two roots: the Helm and Kubernetes providers need a kubeconfig, and Terraform configures providers before it creates resources. The cluster root writes `infra/terraform/cluster/.kubeconfig` (gitignored). The platform root reads that file, installs the Kyverno chart, applies `policies/kyverno/`, and installs this chart into a namespace labelled for Pod Security `restricted`. On kind the Service is a NodePort on 30080. The chart default, which CI renders, is a ClusterIP.
 
 The platform root is the piece you would keep if a future cloud module replaced the kind root and wrote a kubeconfig to the same path. That swap has not been run. There is no AKS, EKS, or GKE in this project.
 
 `kubectl port-forward` is not filtered by NetworkPolicy. The NodePort is. Egress from the pod is denied because the API does not call anything else.
+
+### Troubleshooting
+
+These are the failures that show up on a laptop. State files are local and gitignored. Deleting them is the recovery for this lab when the cluster and the state no longer describe the same thing.
+
+**Kyverno release left `failed` (cluster still exists).** `helm_release.kyverno` was created, then Helm returned `context deadline exceeded`. Pull the latest lab branch, confirm Docker has 4 GB, and apply again. Terraform upgrades that release in place. The kind cluster stays.
+
+```bash
+git pull origin cursor/devsecops-pipeline-mvp-086e
+export KUBECONFIG="$PWD/infra/terraform/cluster/.kubeconfig"
+kubectl get nodes
+helm status kyverno -n kyverno
+make up
+```
+
+`helm status` should say `failed` before `make up`, and `deployed` after it. Then `kubectl get pods -n kyverno` should show one admission pod, and `curl -sS http://127.0.0.1:30080/health` should answer once the platform root finishes.
+
+If status is `pending-install` or `pending-upgrade`, or apply says another operation is in progress, uninstall that release and drop it from state. Helm will not upgrade a pending release.
+
+```bash
+helm uninstall kyverno -n kyverno --no-hooks --kubeconfig "$PWD/infra/terraform/cluster/.kubeconfig"
+terraform -chdir=infra/terraform/platform state rm module.platform.helm_release.kyverno
+make up
+```
+
+**Cluster deleted, Terraform state still present.** `kind delete cluster` does not edit `terraform.tfstate`. The next apply then talks to an API server that is gone.
+
+```bash
+kind get clusters
+rm -f infra/terraform/cluster/terraform.tfstate infra/terraform/cluster/terraform.tfstate.backup infra/terraform/cluster/.kubeconfig
+rm -f infra/terraform/platform/terraform.tfstate infra/terraform/platform/terraform.tfstate.backup
+make up
+```
+
+**CRLF from a checkout on `/mnt/c`.** Clone inside the Linux filesystem, for example `~/src/devsecops-pipeline-showcase`. A checkout on the Windows drive (`/mnt/c/...`) from Git for Windows with `core.autocrlf=true` is written with CRLF, and WSL `make` then reports `$'\r': command not found`. This repo sets `eol=lf` in `.gitattributes`. After pulling that file into an existing Windows-drive checkout:
+
+```bash
+git pull
+git config core.autocrlf input
+git rm -rf --cached .
+git reset --hard HEAD
+```
+
+`reset --hard` rewrites tracked files only. `terraform.tfstate` and `.kubeconfig` are gitignored and stay where they are.
+
+**Provider download reset.** A dropped connection during `terraform init` leaves a short binary under `.terraform/providers`. The next init fails the checksum or the plugin will not start. Delete the provider cache and init again. Leave `.terraform.lock.hcl` in place.
+
+```bash
+rm -rf infra/terraform/platform/.terraform/providers infra/terraform/cluster/.terraform/providers
+terraform -chdir=infra/terraform/cluster init -input=false
+terraform -chdir=infra/terraform/platform init -input=false
+```
 
 ## What a blocked pull request looks like
 
