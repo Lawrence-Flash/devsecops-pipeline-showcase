@@ -158,13 +158,19 @@ That renders the chart and runs `kyverno apply`. It also expects the privileged 
 
 ### kind and Terraform
 
-Build the image first. `make up` does that, then applies the two roots in order.
+`make up` builds the image, then applies the two roots in order.
 
 ```bash
 make up
 curl -sS http://127.0.0.1:30080/health
 make down
 ```
+
+The `up` recipe is `docker build -t tickets-api:local .`, then `terraform apply` in `infra/terraform/cluster` (kind cluster, then `kind load docker-image`), then `terraform apply` in `infra/terraform/platform` (Kyverno, policies, Helm release).
+
+On Windows, run `make` from Git Bash with Docker Desktop already running. Put `docker`, `kind`, `kubectl`, `terraform`, and `helm` on the Windows PATH, because Terraform `local-exec` starts `cmd.exe` even when `make` was started from Git Bash. The provisioners use `&&`, double quotes, and a Terraform `environment` block for `KUBECONFIG`. The venv activate script there is `.venv/Scripts/activate`.
+
+If `make up` stops after the kind cluster exists, pull this branch and run `make up` again. Terraform replaces the failed image-load step and continues with the platform root. The cluster stays. `make down` deletes it.
 
 Why two roots: the Helm and Kubernetes providers need a kubeconfig, and Terraform configures providers before it creates resources. The cluster root writes `infra/terraform/cluster/.kubeconfig` (gitignored). The platform root reads that file, installs the Kyverno chart, applies `policies/kyverno/`, and installs this chart into a namespace labelled for Pod Security `restricted`. On kind the Service is a NodePort on 30080. The chart default, which CI renders, is a ClusterIP.
 
