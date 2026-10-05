@@ -28,7 +28,12 @@ resource "terraform_data" "load_image" {
     cluster = kind_cluster.this.name
   }
 
+  # No interpreter and no quotes. On Windows, local-exec is cmd.exe, which
+  # keeps single quotes as part of the argument, so kind looks up
+  # "'tickets-api:local'" and reports that the image is missing.
+  # cmd.exe and /bin/sh both accept this form. Names are validated
+  # to contain no spaces or quotes.
   provisioner "local-exec" {
-    command = "kind load docker-image '${var.app_image}' --name '${kind_cluster.this.name}'"
+    command = "kind load docker-image ${var.app_image} --name ${kind_cluster.this.name}"
   }
 }

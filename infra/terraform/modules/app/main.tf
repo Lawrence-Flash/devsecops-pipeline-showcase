@@ -10,11 +10,13 @@ resource "kubernetes_namespace_v1" "tickets" {
 }
 
 resource "helm_release" "tickets" {
-  name      = "tickets-api"
-  chart     = var.chart_path
-  namespace = kubernetes_namespace_v1.tickets.metadata[0].name
-  wait      = true
-  timeout   = 300
+  name            = "tickets-api"
+  chart           = var.chart_path
+  namespace       = kubernetes_namespace_v1.tickets.metadata[0].name
+  wait            = true
+  timeout         = 900
+  atomic          = true
+  cleanup_on_fail = true
 
   values = [
     yamlencode({
